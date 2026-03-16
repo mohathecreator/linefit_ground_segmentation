@@ -1,28 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 project(linefit_ground_segmentation)
 
-find_package(catkin)
-
+# Find dependencies
 find_package(PCL REQUIRED)
-
 find_package(Eigen3 REQUIRED)
+find_package(catkin QUIET)
 
-IF(catkin_FOUND)
-
-    catkin_package(
-        INCLUDE_DIRS include ${EIGEN3_INCLUDE_DIR}
-        LIBRARIES ${PROJECT_NAME}
-        DEPENDS PCL
-    )
-
-ENDIF()
-
-include_directories(
-    include
-    ${EIGEN3_INCLUDE_DIR}
-    ${PCL_INCLUDE_DIRS}
-)
-
+# Library definition
 add_library(${PROJECT_NAME} SHARED
     src/ground_segmentation.cc
     src/segment.cc
@@ -30,37 +14,72 @@ add_library(${PROJECT_NAME} SHARED
     src/viewer.cc
 )
 
-target_link_libraries(${PROJECT_NAME} ${PCL_LIBRARIES})
-
+# Target configuration
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
+target_include_directories(${PROJECT_NAME} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    ${EIGEN3_INCLUDE_DIR}
+    ${PCL_INCLUDE_DIRS}
+)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${PCL_LIBRARIES})
+target_compile_definitions(${PROJECT_NAME} PUBLIC ${PCL_DEFINITIONS})
 
-add_definitions(${PCL_DEFINITIONS})
+# ROS/Catkin specific configuration
+IF(catkin_FOUND)
+    catkin_package(
+        INCLUDE_DIRS include
+        LIBRARIES ${PROJECT_NAME}
+        DEPENDS PCL Eigen3
+    )
+ENDIF()
+
+# Install rules
+include(GNUInstallDirs)
 
 install(TARGETS ${PROJECT_NAME}
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
+    EXPORT ${PROJECT_NAME}Targets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 install(DIRECTORY include/
-    DESTINATION include
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-IF(catkin_FOUND)
+# Export configuration for find_package(linefit_ground_segmentation)
+include(CMakePackageConfigHelpers)
 
-    install(TARGETS ${PROJECT_NAME}
-        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-        RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-    )
+write_basic_package_version_file(
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    VERSION 0.0.1
+    COMPATIBILITY AnyNewerVersion
+)
 
-    install(DIRECTORY include/
-        DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-        FILES_MATCHING PATTERN "*.h"
-        PATTERN ".svn" EXCLUDE
-    )
+export(EXPORT ${PROJECT_NAME}Targets
+    FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake"
+    NAMESPACE ${PROJECT_NAME}::
+)
 
-ENDIF()
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+)
 
+install(EXPORT ${PROJECT_NAME}Targets
+    FILE ${PROJECT_NAME}Targets.cmake
+    NAMESPACE ${PROJECT_NAME}::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+)
+
+install(FILES
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    "${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+)
 
 #############
 # QTCREATOR #
